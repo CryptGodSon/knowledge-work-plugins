@@ -16,6 +16,7 @@ Usage:
 """
 
 import argparse
+import csv
 import os
 import sys
 from pathlib import Path
@@ -327,11 +328,13 @@ def _write_samplesheet(rows: List[Dict], config: Dict, output_path: str):
     # Maintain original column order
     active_columns = [c for c in column_names if c in active_columns]
 
-    with open(output_path, 'w') as f:
-        f.write(','.join(active_columns) + '\n')
+    # csv.writer quotes values containing commas or quotes (e.g. a path
+    # like "reads,run/x.fastq.gz"), which a plain ','.join would split.
+    with open(output_path, 'w', newline='') as f:
+        writer = csv.writer(f, lineterminator='\n')
+        writer.writerow(active_columns)
         for row in rows:
-            values = [str(row.get(col, '')) for col in active_columns]
-            f.write(','.join(values) + '\n')
+            writer.writerow([str(row.get(col, '')) for col in active_columns])
 
 
 def _print_preview(rows: List[Dict], config: Dict):
@@ -351,8 +354,6 @@ def _print_preview(rows: List[Dict], config: Dict):
 
 def validate_existing_samplesheet(csv_path: str, pipeline: str) -> ValidationResult:
     """Validate an existing samplesheet file."""
-    import csv
-
     if not os.path.exists(csv_path):
         return ValidationResult(valid=False, errors=[f"File not found: {csv_path}"])
 
